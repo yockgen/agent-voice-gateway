@@ -90,9 +90,9 @@ def write_transcript(rec_id: str, text: str) -> Path:
     return txt_path
 
 
-def write_hermes_reply(rec_id: str, text: str) -> Path:
-    """Write the Hermes reply for a recording to `{rec_id}.hermes.txt` (UTF-8)."""
+def write_agent_reply(rec_id: str, text: str) -> Path:
+    """Write the agent gateway reply for a recording to `{rec_id}.agent.txt`."""
     RECORDINGS_DIR.mkdir(parents=True, exist_ok=True)
-    reply_path = RECORDINGS_DIR / f"{rec_id}.hermes.txt"
+    reply_path = RECORDINGS_DIR / f"{rec_id}.agent.txt"
     reply_path.write_text(text, encoding="utf-8")
     return reply_path

@@ -1,8 +1,8 @@
 """Runtime configuration for the voice gateway.
 
 Storage settings drive where recordings and transcripts land. The Whisper
-settings configure the phase 2 speech-to-text step. The Hermes placeholders are
-declared for a later phase (forwarding transcripts to the Hermes gateway).
+settings configure the speech-to-text step. The agent gateway settings control
+forwarding transcripts to any OpenAI-compatible gateway.
 """
 
 import os
@@ -28,18 +28,19 @@ WHISPER_VAD = os.environ.get("VOICEGATEWAY_WHISPER_VAD", "1") not in ("0", "fals
 # Where model weights are downloaded/cached (kept inside the project, gitignored).
 WHISPER_DIR = Path(os.environ.get("VOICEGATEWAY_WHISPER_DIR", _PROJECT_ROOT / ".models"))
 
-# --- Hermes gateway forwarding ---
-# Transcripts are forwarded to the Hermes OpenAI-compatible gateway when an API
-# key is configured. Provide HERMES_API_KEY (or VOICEGATEWAY_HERMES_API_KEY) at
-# launch; the key is never stored in the repo.
-HERMES_BASE_URL = os.environ.get("HERMES_BASE_URL", "http://127.0.0.1:3001")
-HERMES_API_KEY = os.environ.get(
-    "HERMES_API_KEY", os.environ.get("VOICEGATEWAY_HERMES_API_KEY", "")
+# --- Agent gateway forwarding ---
+# Transcripts are forwarded to any OpenAI-compatible agent gateway when an API
+# key is configured. Provide AGENT_API_KEY (or VOICEGATEWAY_AGENT_API_KEY) at
+# launch; the key is never stored in the repo. The default base URL/model point
+# at a local gateway but can be set to any OpenAI-compatible endpoint.
+AGENT_BASE_URL = os.environ.get("AGENT_BASE_URL", "http://127.0.0.1:3001")
+AGENT_API_KEY = os.environ.get(
+    "AGENT_API_KEY", os.environ.get("VOICEGATEWAY_AGENT_API_KEY", "")
 )
-HERMES_MODEL = os.environ.get("HERMES_MODEL", "hermes-agent")
-HERMES_TIMEOUT = float(os.environ.get("HERMES_TIMEOUT", 120))
+AGENT_MODEL = os.environ.get("AGENT_MODEL", "hermes-agent")
+AGENT_TIMEOUT = float(os.environ.get("AGENT_TIMEOUT", 120))
 # Optional system prompt prepended to each request.
-HERMES_SYSTEM_PROMPT = os.environ.get("HERMES_SYSTEM_PROMPT", "")
+AGENT_SYSTEM_PROMPT = os.environ.get("AGENT_SYSTEM_PROMPT", "")
 
 # Forwarding is active only when a key is present.
-HERMES_ENABLED = bool(HERMES_API_KEY)
+AGENT_ENABLED = bool(AGENT_API_KEY)

@@ -2,8 +2,8 @@ const recordBtn = document.getElementById("record");
 const statusEl = document.getElementById("status");
 const transcriptWrap = document.getElementById("transcript-wrap");
 const transcriptEl = document.getElementById("transcript");
-const hermesWrap = document.getElementById("hermes-wrap");
-const hermesEl = document.getElementById("hermes");
+const agentWrap = document.getElementById("agent-wrap");
+const agentEl = document.getElementById("agent");
 
 let mediaRecorder = null;
 let chunks = [];
@@ -24,16 +24,16 @@ function showTranscript(text) {
   transcriptWrap.classList.add("visible");
 }
 
-function showHermes(text) {
-  hermesEl.value = text;
-  hermesWrap.classList.add("visible");
+function showAgent(text) {
+  agentEl.value = text;
+  agentWrap.classList.add("visible");
 }
 
 function hideTranscript() {
   transcriptEl.value = "";
   transcriptWrap.classList.remove("visible");
-  hermesEl.value = "";
-  hermesWrap.classList.remove("visible");
+  agentEl.value = "";
+  agentWrap.classList.remove("visible");
 }
 
 function pickMimeType() {
@@ -110,10 +110,10 @@ async function uploadRecording(blob) {
       setStatus(`Saved as ${payload.filename}${lang}`, "success");
       showTranscript(payload.transcript || "(no speech detected)");
 
-      if (payload.hermes_error) {
-        showHermes(`(Hermes error: ${payload.hermes_error})`);
-      } else if (payload.hermes_reply) {
-        showHermes(payload.hermes_reply);
+      if (payload.agent_error) {
+        showAgent(`(Agent error: ${payload.agent_error})`);
+      } else if (payload.agent_reply) {
+        showAgent(payload.agent_reply);
       }
     }
   } catch (err) {

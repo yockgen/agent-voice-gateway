@@ -14,13 +14,13 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from .config import HERMES_ENABLED, MAX_UPLOAD_BYTES
-from .hermes_client import HermesError, send_to_hermes
+from .config import AGENT_ENABLED, MAX_UPLOAD_BYTES
+from .agent_client import AgentError, send_to_agent
 from .stt import TranscriptionError, transcribe_file
 from .storage import (
     TranscodeError,
     save_recording,
-    write_hermes_reply,
+    write_agent_reply,
     write_transcript,
 )
 
@@ -52,9 +52,9 @@ async def create_recording(audio: UploadFile = File(...)) -> dict:
         "language": None,
         "transcript_file": None,
         "stt_error": None,
-        "hermes_reply": None,
-        "hermes_file": None,
-        "hermes_error": None,
+        "agent_reply": None,
+        "agent_file": None,
+        "agent_error": None,
     })
 
     # Transcribe off the event loop. A failure here must not lose the audio,
@@ -68,16 +68,16 @@ async def create_recording(audio: UploadFile = File(...)) -> dict:
     except TranscriptionError as exc:
         result["stt_error"] = str(exc)
 
-    # Forward the transcript to Hermes when configured and there is text to send.
-    # Failures are reported but never discard the saved audio/transcript.
-    if HERMES_ENABLED and result["transcript"]:
+    # Forward the transcript to the agent gateway when configured and there is
+    # text to send. Failures are reported but never discard the audio/transcript.
+    if AGENT_ENABLED and result["transcript"]:
         try:
-            reply = await send_to_hermes(result["transcript"])
-            reply_path = write_hermes_reply(result["id"], reply)
-            result["hermes_reply"] = reply
-            result["hermes_file"] = reply_path.name
-        except HermesError as exc:
-            result["hermes_error"] = str(exc)
+            reply = await send_to_agent(result["transcript"])
+            reply_path = write_agent_reply(result["id"], reply)
+            result["agent_reply"] = reply
+            result["agent_file"] = reply_path.name
+        except AgentError as exc:
+            result["agent_error"] = str(exc)
 
     return result
 
