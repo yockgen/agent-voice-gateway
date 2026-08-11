@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Voice Gateway</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --accent: #4f46e5;
+        --accent-rec: #dc2626;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+        background: #0f172a;
+        color: #e2e8f0;
+      }
+      .card {
+        width: min(420px, 90vw);
+        padding: 2rem;
+        background: #1e293b;
+        border-radius: 16px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+        text-align: center;
+      }
+      h1 {
+        margin: 0 0 0.25rem;
+        font-size: 1.4rem;
+      }
+      p.subtitle {
+        margin: 0 0 1.5rem;
+        color: #94a3b8;
+        font-size: 0.9rem;
+      }
+      #record {
+        appearance: none;
+        border: none;
+        cursor: pointer;
+        width: 100%;
+        padding: 0.9rem 1rem;
+        font-size: 1rem;
+        font-weight: 600;
+        color: #fff;
+        background: var(--accent);
+        border-radius: 10px;
+        transition: background 0.15s ease, transform 0.05s ease;
+      }
+      #record:hover {
+        filter: brightness(1.05);
+      }
+      #record:active {
+        transform: translateY(1px);
+      }
+      #record:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+      #record.recording {
+        background: var(--accent-rec);
+      }
+      #status {
+        margin-top: 1.25rem;
+        min-height: 1.5rem;
+        font-size: 0.9rem;
+        color: #cbd5e1;
+      }
+      #status.error {
+        color: #fca5a5;
+      }
+      #status.success {
+        color: #86efac;
+      }
+      .field-wrap {
+        margin-top: 1.25rem;
+        text-align: left;
+        display: none;
+      }
+      .field-wrap.visible {
+        display: block;
+      }
+      .field-label {
+        font-size: 0.8rem;
+        color: #94a3b8;
+        margin-bottom: 0.35rem;
+      }
+      .field-box {
+        width: 100%;
+        min-height: 5rem;
+        resize: vertical;
+        padding: 0.6rem 0.7rem;
+        font-size: 0.95rem;
+        line-height: 1.4;
+        color: #e2e8f0;
+        background: #0f172a;
+        border: 1px solid rgba(148, 163, 184, 0.25);
+        border-radius: 8px;
+      }
+      #hermes.field-box {
+        border-color: rgba(79, 70, 229, 0.5);
+      }
+      code {
+        background: rgba(148, 163, 184, 0.15);
+        padding: 0.1rem 0.35rem;
+        border-radius: 5px;
+        font-size: 0.85em;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <h1>Voice Gateway</h1>
+      <p class="subtitle">Click, speak, and save your recording as OGG.</p>
+      <button id="record" type="button">Start recording</button>
+      <div id="status">Ready.</div>
+      <div id="transcript-wrap" class="field-wrap">
+        <div class="field-label">Transcript</div>
+        <textarea id="transcript" class="field-box" readonly placeholder="Transcript will appear here..."></textarea>
+      </div>
+      <div id="hermes-wrap" class="field-wrap">
+        <div class="field-label">Hermes reply</div>
+        <textarea id="hermes" class="field-box" readonly placeholder="Hermes reply will appear here..."></textarea>
+      </div>
+    </main>
+    <script src="/static/app.js"></script>
+  </body>
+</html>
