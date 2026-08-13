@@ -65,6 +65,21 @@ shown in the page.
 > use `http://localhost` in dev, or serve over HTTPS when accessing from
 > another machine.
 
+### Multilingual speech (auto-detect + hints)
+
+- Leave **`VOICEGATEWAY_WHISPER_LANGUAGE` unset** on the server so Whisper auto-detects
+  language.
+- Per recording, callers can pass a hint when auto-detect is wrong:
+  - multipart field **`language`**: `auto`, `en`, `zh`, or any ISO-639-1 code
+  - or header **`X-Voice-Language`** with the same values
+- The bundled recorder UI includes an optional speech-language selector; integrators
+  can also send hints from their own apps via the API.
+- If auto-detect is unreliable on short clips, try:
+  `VOICEGATEWAY_WHISPER_LANGUAGE_DETECTION_SEGMENTS=3` and/or a larger
+  `VOICEGATEWAY_WHISPER_MODEL=medium`.
+- To lock one language for the whole server, set
+  `VOICEGATEWAY_WHISPER_LANGUAGE` (e.g. `en` or `zh`).
+
 ### If `python3-venv` is unavailable (externally managed Python)
 
 Install dependencies into a project-local folder and point `PYTHONPATH` at it:
@@ -83,11 +98,16 @@ Set via environment variables:
 |----------|---------|---------|
 | `VOICEGATEWAY_RECORDINGS_DIR` | `./recordings` | Where `.ogg` and `.txt` files are written |
 | `VOICEGATEWAY_MAX_UPLOAD_BYTES` | `26214400` (25 MB) | Max accepted upload size |
+| `VOICEGATEWAY_API_KEY` | *(unset)* | If set, callers must present this key (`Authorization: Bearer` or `X-API-Key`). If unset, the API is open |
+| `VOICEGATEWAY_CORS_ORIGINS` | `*` | Comma-separated allowed origins for browser callers (e.g. `https://app.example.com`) |
 | `VOICEGATEWAY_WHISPER_MODEL` | `small` | Whisper model size: `tiny`/`base`/`small`/`medium`/`large-v3` |
 | `VOICEGATEWAY_WHISPER_DEVICE` | `cpu` | Compute device for faster-whisper |
 | `VOICEGATEWAY_WHISPER_COMPUTE_TYPE` | `int8` | CTranslate2 compute type (e.g. `int8`, `float32`) |
 | `VOICEGATEWAY_WHISPER_BEAM_SIZE` | `5` | Beam size for decoding |
 | `VOICEGATEWAY_WHISPER_VAD` | `1` | Drop silence with voice-activity detection (`0` to disable) |
+| `VOICEGATEWAY_WHISPER_LANGUAGE` | *(unset)* | Default STT language (ISO-639-1, e.g. `en`). Unset = auto-detect |
+| `VOICEGATEWAY_WHISPER_LANGUAGE_DETECTION_THRESHOLD` | `0.5` | Min confidence for auto language detection (0–1) |
+| `VOICEGATEWAY_WHISPER_LANGUAGE_DETECTION_SEGMENTS` | `1` | Audio segments sampled for language ID (try `3` for short clips) |
 | `VOICEGATEWAY_WHISPER_DIR` | `./.models` | Model download/cache directory |
 | `AGENT_API_KEY` | *(unset)* | Agent gateway API key. Forwarding is **enabled only when this is set** (alias: `VOICEGATEWAY_AGENT_API_KEY`) |
 | `AGENT_BASE_URL` | `http://127.0.0.1:3001` | Agent gateway base URL (any OpenAI-compatible endpoint) |
@@ -120,7 +140,7 @@ AGENT_API_KEY=your-gateway-key \
 |--------|------|-------------|
 | `GET` | `/` | Serves the recorder web page |
 | `GET` | `/api/health` | Returns `{"ok": true}` |
-| `POST` | `/api/recordings` | `multipart/form-data` with field `audio`; saves the clip, transcribes it, forwards the transcript to the configured agent gateway, and returns `{ id, filename, path, size_bytes, transcript, language, transcript_file, stt_error, agent_reply, agent_file, agent_error }` |
+| `POST` | `/api/recordings` | `multipart/form-data` with field `audio`; optional `language` (`auto`, `en`, `zh`, …) or header `X-Voice-Language`. Saves the clip, transcribes it, forwards the transcript to the configured agent gateway, and returns `{ id, filename, path, size_bytes, transcript, language, language_probability, transcript_file, stt_error, agent_reply, agent_file, agent_error }` |
 
 Example:
 
@@ -138,6 +158,76 @@ Notes:
 - If gateway forwarding fails (or no key is configured), the audio and
   transcript are still saved; the response returns `200` with `agent_reply:
   null` and, on failure, a populated `agent_error`.
+
+## Use as an API for other applications
+
+Another application can send voice input and receive the transcript and the
+agent reply as JSON. The full round trip is:
+
+```
+your app --(audio)--> voice gateway --(text)--> agent gateway
+your app <--(JSON: transcript + agent_reply)-- voice gateway
+```
+
+The audio may be any format `ffmpeg` can read (OGG/Opus, WebM/Opus, WAV, MP3,
+...); the gateway stores it as OGG and transcribes it.
+
+### Authentication
+
+When `VOICEGATEWAY_API_KEY` is set, every call to `/api/recordings` must
+include the key using either header:
+
+```
+Authorization: Bearer <VOICEGATEWAY_API_KEY>
+X-API-Key: <VOICEGATEWAY_API_KEY>
+```
+
+Missing/invalid keys get `401`. `GET /api/health` stays open for probes.
+
+### Backend (server-to-server) example
+
+```bash
+curl -X POST \
+  -H "Authorization: Bearer $VOICEGATEWAY_API_KEY" \
+  -F "audio=@clip.ogg;type=audio/ogg" \
+  http://VOICE_GATEWAY_HOST:8095/api/recordings
+```
+
+Response:
+
+```json
+{
+  "transcript": "hello, can you hear me?",
+  "language": "en",
+  "agent_reply": "Yes, I can hear you clearly. How can I help?",
+  "agent_file": "<uuid>.agent.txt",
+  "agent_error": null
+}
+```
+
+Your app typically reads `agent_reply` (and `transcript`).
+
+### Browser (cross-origin) example
+
+Set `VOICEGATEWAY_CORS_ORIGINS` to your web app's origin (or `*`), then from
+the other web app:
+
+```javascript
+const form = new FormData();
+form.append("audio", audioBlob, "clip.ogg");
+
+const res = await fetch("http://VOICE_GATEWAY_HOST:8095/api/recordings", {
+  method: "POST",
+  headers: { "X-API-Key": VOICE_GATEWAY_API_KEY },
+  body: form,
+});
+const data = await res.json();
+console.log(data.transcript, data.agent_reply);
+```
+
+> Exposing the API key in browser JavaScript makes it visible to end users.
+> For public browser apps, prefer proxying through your own backend (which holds
+> the key) rather than calling the gateway directly from the browser.
 
 ## Project layout
 

@@ -117,6 +117,20 @@
     <main class="card">
       <h1>Voice Gateway</h1>
       <p class="subtitle">Click, speak, and save your recording as OGG.</p>
+      <input
+        id="apikey"
+        class="field-box"
+        type="password"
+        autocomplete="off"
+        placeholder="API key (only if the gateway requires one)"
+        style="min-height:auto;margin-bottom:0.85rem;"
+      />
+      <label class="field-label" for="stt-language" style="display:block;margin-bottom:0.35rem;text-align:left;">Speech language</label>
+      <select id="stt-language" class="field-box" style="min-height:auto;margin-bottom:0.85rem;">
+        <option value="auto" selected>Auto-detect</option>
+        <option value="en">English</option>
+        <option value="zh">中文 (Chinese)</option>
+      </select>
       <button id="record" type="button">Start recording</button>
       <div id="status">Ready.</div>
       <div id="transcript-wrap" class="field-wrap">

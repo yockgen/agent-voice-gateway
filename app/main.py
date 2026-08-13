@@ -7,14 +7,16 @@ Run:
     uvicorn app.main:app --host 0.0.0.0 --port 8095
 """
 
+import logging
 from pathlib import Path
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, UploadFile
 from fastapi.concurrency import run_in_threadpool
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from .config import AGENT_ENABLED, MAX_UPLOAD_BYTES
+from .config import AGENT_ENABLED, API_KEY, CORS_ORIGINS, MAX_UPLOAD_BYTES
 from .agent_client import AgentError, send_to_agent
 from .stt import TranscriptionError, transcribe_file
 from .storage import (
@@ -24,9 +26,43 @@ from .storage import (
     write_transcript,
 )
 
+logger = logging.getLogger("voicegateway")
+
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 
-app = FastAPI(title="Voice Gateway", version="0.3.0")
+app = FastAPI(title="Voice Gateway", version="0.4.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=CORS_ORIGINS,
+    allow_methods=["*"],
+    allow_headers=["*"],
+    allow_credentials=False,
+)
+
+if not API_KEY:
+    logger.warning(
+        "VOICEGATEWAY_API_KEY is not set: the API is OPEN to anyone who can "
+        "reach it. Set VOICEGATEWAY_API_KEY to require an API key."
+    )
+
+
+def require_api_key(
+    authorization: str | None = Header(default=None),
+    x_api_key: str | None = Header(default=None),
+) -> None:
+    """Enforce the gateway API key when one is configured.
+
+    Accepts either `Authorization: Bearer <key>` or `X-API-Key: <key>`.
+    No-op when `VOICEGATEWAY_API_KEY` is unset (development).
+    """
+    if not API_KEY:
+        return
+    provided = x_api_key
+    if not provided and authorization and authorization.lower().startswith("bearer "):
+        provided = authorization[7:].strip()
+    if provided != API_KEY:
+        raise HTTPException(status_code=401, detail="Invalid or missing API key.")
 
 
 @app.get("/api/health")
@@ -34,8 +70,12 @@ def health() -> dict:
     return {"ok": True}
 
 
-@app.post("/api/recordings")
-async def create_recording(audio: UploadFile = File(...)) -> dict:
+@app.post("/api/recordings", dependencies=[Depends(require_api_key)])
+async def create_recording(
+    audio: UploadFile = File(...),
+    language: str | None = Form(default=None),
+    x_voice_language: str | None = Header(default=None, alias="X-Voice-Language"),
+) -> dict:
     data = await audio.read()
     if not data:
         raise HTTPException(status_code=400, detail="Empty upload.")
@@ -50,6 +90,7 @@ async def create_recording(audio: UploadFile = File(...)) -> dict:
     result.update({
         "transcript": None,
         "language": None,
+        "language_probability": None,
         "transcript_file": None,
         "stt_error": None,
         "agent_reply": None,
@@ -57,13 +98,18 @@ async def create_recording(audio: UploadFile = File(...)) -> dict:
         "agent_error": None,
     })
 
+    language_hint = language if language is not None else x_voice_language
+
     # Transcribe off the event loop. A failure here must not lose the audio,
     # which is already saved -- report it and return the recording metadata.
     try:
-        stt = await run_in_threadpool(transcribe_file, Path(result["path"]))
+        stt = await run_in_threadpool(
+            transcribe_file, Path(result["path"]), language_hint
+        )
         txt_path = write_transcript(result["id"], stt["text"])
         result["transcript"] = stt["text"]
         result["language"] = stt["language"]
+        result["language_probability"] = stt.get("language_probability")
         result["transcript_file"] = txt_path.name
     except TranscriptionError as exc:
         result["stt_error"] = str(exc)

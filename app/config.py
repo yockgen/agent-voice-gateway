@@ -17,6 +17,20 @@ RECORDINGS_DIR = Path(
 # Cap uploads to avoid accidental huge blobs (25 MB).
 MAX_UPLOAD_BYTES = int(os.environ.get("VOICEGATEWAY_MAX_UPLOAD_BYTES", 25 * 1024 * 1024))
 
+# --- API access (for other applications calling this gateway) ---
+# When set, callers must present this key on protected endpoints via either
+# `Authorization: Bearer <key>` or `X-API-Key: <key>`. If empty, the API is
+# open (development only) and a warning is logged at startup.
+API_KEY = os.environ.get("VOICEGATEWAY_API_KEY", "")
+
+# CORS allowed origins for browser callers on other origins. Comma-separated
+# list, or "*" for any origin. Auth uses a header (not cookies), so "*" is safe.
+CORS_ORIGINS = [
+    o.strip()
+    for o in os.environ.get("VOICEGATEWAY_CORS_ORIGINS", "*").split(",")
+    if o.strip()
+]
+
 # --- Speech-to-text (faster-whisper) ---
 # Model size trades accuracy for speed: tiny/base/small/medium/large-v3.
 WHISPER_MODEL = os.environ.get("VOICEGATEWAY_WHISPER_MODEL", "small")
@@ -25,6 +39,16 @@ WHISPER_COMPUTE_TYPE = os.environ.get("VOICEGATEWAY_WHISPER_COMPUTE_TYPE", "int8
 WHISPER_BEAM_SIZE = int(os.environ.get("VOICEGATEWAY_WHISPER_BEAM_SIZE", 5))
 # Drop silence with the built-in VAD for cleaner transcripts.
 WHISPER_VAD = os.environ.get("VOICEGATEWAY_WHISPER_VAD", "1") not in ("0", "false", "False", "")
+# ISO-639-1 code (e.g. en, zh) or empty for auto-detect.
+_whisper_lang = os.environ.get("VOICEGATEWAY_WHISPER_LANGUAGE", "").strip().lower()
+WHISPER_LANGUAGE = _whisper_lang or None
+# When language is auto-detected, faster-whisper uses this minimum confidence (0–1).
+WHISPER_LANGUAGE_DETECTION_THRESHOLD = float(
+    os.environ.get("VOICEGATEWAY_WHISPER_LANGUAGE_DETECTION_THRESHOLD", "0.5")
+)
+WHISPER_LANGUAGE_DETECTION_SEGMENTS = int(
+    os.environ.get("VOICEGATEWAY_WHISPER_LANGUAGE_DETECTION_SEGMENTS", "1")
+)
 # Where model weights are downloaded/cached (kept inside the project, gitignored).
 WHISPER_DIR = Path(os.environ.get("VOICEGATEWAY_WHISPER_DIR", _PROJECT_ROOT / ".models"))
 

@@ -1,5 +1,24 @@
 const recordBtn = document.getElementById("record");
 const statusEl = document.getElementById("status");
+const apiKeyEl = document.getElementById("apikey");
+const sttLanguageEl = document.getElementById("stt-language");
+
+const STT_LANGUAGE_STORAGE = "voicegateway_stt_language";
+if (sttLanguageEl) {
+  const savedLang = localStorage.getItem(STT_LANGUAGE_STORAGE);
+  if (savedLang) sttLanguageEl.value = savedLang;
+  sttLanguageEl.addEventListener("change", () => {
+    localStorage.setItem(STT_LANGUAGE_STORAGE, sttLanguageEl.value);
+  });
+}
+
+const API_KEY_STORAGE = "voicegateway_api_key";
+if (apiKeyEl) {
+  apiKeyEl.value = localStorage.getItem(API_KEY_STORAGE) || "";
+  apiKeyEl.addEventListener("change", () => {
+    localStorage.setItem(API_KEY_STORAGE, apiKeyEl.value.trim());
+  });
+}
 const transcriptWrap = document.getElementById("transcript-wrap");
 const transcriptEl = document.getElementById("transcript");
 const agentWrap = document.getElementById("agent-wrap");
@@ -95,9 +114,16 @@ async function uploadRecording(blob) {
 
   const form = new FormData();
   form.append("audio", blob, "recording");
+  if (sttLanguageEl?.value && sttLanguageEl.value !== "auto") {
+    form.append("language", sttLanguageEl.value);
+  }
+
+  const headers = {};
+  const key = apiKeyEl ? apiKeyEl.value.trim() : "";
+  if (key) headers["X-API-Key"] = key;
 
   try {
-    const res = await fetch("/api/recordings", { method: "POST", body: form });
+    const res = await fetch("/api/recordings", { method: "POST", body: form, headers });
     const payload = await res.json().catch(() => ({}));
     if (!res.ok) {
       throw new Error(payload.detail || `HTTP ${res.status}`);
