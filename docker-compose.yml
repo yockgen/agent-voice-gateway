@@ -1,0 +1,28 @@
+services:
+  voice-gateway:
+    build: .
+    image: agent-voice-gateway:latest
+    ports:
+      - "8095:8095"
+    volumes:
+      - recordings:/data/recordings   # persisted audio & transcripts
+      - models:/data/models           # cached Whisper model weights
+    environment:
+      # ── Gateway security ────────────────────────────────────────────────────
+      # VOICEGATEWAY_API_KEY: "changeme"          # leave unset for open/dev mode
+      # VOICEGATEWAY_CORS_ORIGINS: "http://localhost:3000"
+
+      # ── Speech-to-text ──────────────────────────────────────────────────────
+      VOICEGATEWAY_WHISPER_MODEL: "small"         # tiny|base|small|medium|large-v3
+      VOICEGATEWAY_WHISPER_DEVICE: "cpu"          # cpu | cuda
+      VOICEGATEWAY_WHISPER_COMPUTE_TYPE: "int8"
+
+      # ── Agent forwarding (optional) ─────────────────────────────────────────
+      # AGENT_BASE_URL: "http://your-agent-gateway:3001"
+      # AGENT_API_KEY: "your-agent-key"
+      # AGENT_MODEL: "hermes-agent"
+    restart: unless-stopped
+
+volumes:
+  recordings:
+  models:
